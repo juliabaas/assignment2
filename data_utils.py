@@ -75,20 +75,40 @@ class TimeSeriesDataset(Dataset):
 
 
 
-def _filter_and_transform_labels(data_matrices, string_labels, label_encoder, dataset_name="data"):
+def _filter_and_transform_labels(data_matrices, string_labels, label_encoder, dataset_name="data", fit_encoder=False):
     """
     Filters data based on known labels in a LabelEncoder and transforms labels to integers.
     Optionally fits the encoder or updates it with new labels if fit_encoder is True (for training data).
     """
-    if not data_matrices or not string_labels:
+    if not data_matrices or not string_labels: # Handles empty lists
         print(f"No data or labels provided to _filter_and_transform_labels for {dataset_name} set.")
         return [], None, label_encoder
 
+    if fit_encoder:
+        if label_encoder is None:
+            label_encoder = LabelEncoder()
+        try:
+            # Fit the encoder with the provided string_labels.
+            label_encoder.fit(string_labels)
+        except Exception as e:
+            print(f"Error fitting LabelEncoder for {dataset_name}: {e}. Labels (first 10): {string_labels[:10]}.")
+            # Return the original or newly created (but potentially unfitted) encoder.
+            return [], None, label_encoder
+
+    # After potential fitting, check if encoder is usable
+    if label_encoder is None: # This would happen if fit_encoder=False and label_encoder was passed as None
+        print(f"LabelEncoder is None for {dataset_name} and not configured to fit. Cannot transform labels.")
+        return data_matrices, None, label_encoder # Keep data_matrices, but no labels
+
+    # Now, attempt to transform
     try:
         integer_labels = label_encoder.transform(string_labels)
         return data_matrices, integer_labels, label_encoder
-    except ValueError as ve:
-        print(f"Warning: Error transforming {dataset_name} labels: {ve}. Unknown labels found when 'fit_encoder' was False. Returning empty for this dataset.")
+    except ValueError as ve: # Handles unknown labels
+        print(f"Warning: Error transforming {dataset_name} labels: {ve}. Unknown labels found when 'fit_encoder' was {fit_encoder}. Returning empty for this dataset.")
+        return [], None, label_encoder
+    except Exception as e: # Catch other errors like NotFittedError if fitting didn't happen/failed
+        print(f"An unexpected error occurred during label transformation for {dataset_name}: {e}")
         return [], None, label_encoder
 
 
@@ -129,6 +149,9 @@ def prepare_pytorch_dataloader(data_dir, batch_size=32, shuffle_train=True, labe
                label_encoder: The LabelEncoder used.
     """
     print(f"Loading H5 data from {data_dir}...")
+    # At the beginning of the function, capture if the input label_encoder is None
+    initial_label_encoder_is_none = (label_encoder is None)
+
     raw_data_with_labels = load_h5_data(data_dir) 
     
     if not raw_data_with_labels:
@@ -140,6 +163,7 @@ def prepare_pytorch_dataloader(data_dir, batch_size=32, shuffle_train=True, labe
     processed_data_matrices = []
     if downsample_factor > 1:
         print(f"Applying decimation (factor {downsample_factor}) to {len(data_matrices)} loaded samples...")
+        # Corrected loop for appending processed matrices
         for idx, matrix in enumerate(data_matrices):
             try:
                 downsampled_channels = []
@@ -148,10 +172,15 @@ def prepare_pytorch_dataloader(data_dir, batch_size=32, shuffle_train=True, labe
                     downsampled_channel = scipy.signal.decimate(channel_data, q=downsample_factor, ftype='fir', axis=-1, zero_phase=True)
                     downsampled_channels.append(downsampled_channel)
                 downsampled_matrix = np.array(downsampled_channels)
-            except ValueError as e:
-                downsampled_matrix = matrix[:, ::downsample_factor]
-        
-        processed_data_matrices.append(downsampled_matrix)
+            except ValueError as e: # Fallback if decimate fails (e.g. signal too short)
+                print(f"  Decimation failed for sample {idx} with shape {matrix.shape}: {e}. Using simple slicing.")
+                # Ensure there's at least one point after slicing
+                if matrix.shape[1] >= downsample_factor:
+                    downsampled_matrix = matrix[:, ::downsample_factor]
+                else: # If too short even for slicing, keep as is or handle as error
+                    print(f"  Sample {idx} is too short for downsampling factor {downsample_factor}. Keeping original.")
+                    downsampled_matrix = matrix 
+            processed_data_matrices.append(downsampled_matrix) # Append outside the inner loop
     else:
         processed_data_matrices = list(data_matrices)
 
@@ -213,6 +242,9 @@ def prepare_pytorch_dataloader(data_dir, batch_size=32, shuffle_train=True, labe
     integer_labels_train = None
     integer_labels_val = None
 
+    # This is the label_encoder instance that will be managed and potentially returned
+    current_label_encoder = label_encoder
+
     if validation_split is not None and 0 < validation_split < 1:
         print(f"Splitting data into training and validation sets (validation_split={validation_split}, random_state={random_state})...")
         try:
@@ -222,7 +254,7 @@ def prepare_pytorch_dataloader(data_dir, batch_size=32, shuffle_train=True, labe
                 random_state=random_state, 
                 stratify=final_string_labels 
             )
-        except ValueError as e: # Catch error if stratification fails (e.g. too few samples for a class)
+        except ValueError as e: 
             print(f"Warning: Could not stratify data during train-validation split: {e}. Splitting without stratification.")
             train_data_matrices, val_data_matrices, train_string_labels, val_string_labels = train_test_split(
                 final_data_matrices, final_string_labels,
@@ -232,57 +264,105 @@ def prepare_pytorch_dataloader(data_dir, batch_size=32, shuffle_train=True, labe
             )
         print(f"Training set size: {len(train_data_matrices)}, Validation set size: {len(val_data_matrices)}")
         
-    # Process training labels
+    # Process primary data labels (training data if split, or full dataset if not splitting)
     if train_data_matrices and train_string_labels:
-        train_data_matrices, integer_labels_train, label_encoder = _filter_and_transform_labels(
-            train_data_matrices, train_string_labels, label_encoder, 
-            dataset_name="training", fit_encoder=True # Always fit/update on training data
+        # Determine if fitting should occur for this block.
+        # Fit only if an encoder wasn't provided to the main function (i.e., it's the first time processing for this encoder).
+        should_fit_encoder_for_this_block = initial_label_encoder_is_none
+
+        log_dataset_name = "training"
+        if validation_split is None: # This block processes the entire dataset for this call
+            if not initial_label_encoder_is_none:
+                log_dataset_name = "dataset (using provided encoder)"
+            else:
+                log_dataset_name = "dataset (fitting new encoder)"
+        
+        train_data_matrices, integer_labels_train, current_label_encoder = _filter_and_transform_labels(
+            train_data_matrices, train_string_labels, current_label_encoder, 
+            dataset_name=log_dataset_name,
+            fit_encoder=should_fit_encoder_for_this_block 
         )
-        if not train_data_matrices or integer_labels_train is None: # integer_labels_train could be an empty array from helper
-            print("Training data or labels became empty after encoding/filtering. Cannot create train DataLoader.")
-            return None, None, label_encoder
+        if not train_data_matrices or integer_labels_train is None: 
+            print(f"{log_dataset_name.capitalize()} data or labels became empty after encoding/filtering. Cannot create main DataLoader.")
+            return None, None, current_label_encoder # Return current state of encoder
     else:
-        print("No training data/labels to process for encoder. Cannot create train DataLoader.")
-        return None, None, label_encoder # label_encoder might be None here
+        print(f"No primary data/labels to process for encoder. Cannot create main DataLoader.")
+        return None, None, current_label_encoder # Return original or None encoder
 
     # Process validation labels (if validation set exists)
-    if val_data_matrices and val_string_labels and label_encoder:
+    if val_data_matrices and val_string_labels and current_label_encoder: # Use the (potentially new) current_label_encoder
         val_data_matrices, integer_labels_val, _ = _filter_and_transform_labels(
-            val_data_matrices, val_string_labels, label_encoder, 
+            val_data_matrices, val_string_labels, current_label_encoder, 
             dataset_name="validation", fit_encoder=False # Never fit/update encoder on validation data
         )
-        if not val_data_matrices or integer_labels_val is None: # integer_labels_val could be an empty array
+        if not val_data_matrices or integer_labels_val is None: 
             print("Validation data or labels became empty after encoding/filtering. Validation loader will be None.")
-            val_data_matrices = None # Ensure it's None if effectively empty
+            val_data_matrices = None 
             integer_labels_val = None
-    elif validation_split is not None and not label_encoder:
-        print("Warning: Validation split requested, but label encoder was not created (e.g. training data was empty). Cannot process validation labels.")
+    elif validation_split is not None and not current_label_encoder: # If split was requested but encoder is bad
+        print("Warning: Validation split requested, but label encoder is not available/fitted. Cannot process validation labels.")
         val_data_matrices = None
         integer_labels_val = None
     
-    if not train_data_matrices or not isinstance(integer_labels_train, (list, np.ndarray)) or len(integer_labels_train) == 0: # Final check
-        print(f"No training data or labels remaining after all processing steps from {data_dir}. Cannot create train DataLoader.")
-        return None, None, label_encoder
+    # Final check for the main dataset (train or full)
+    if not train_data_matrices or not isinstance(integer_labels_train, (list, np.ndarray)) or len(integer_labels_train) == 0:
+        main_data_descriptor = "Training" if validation_split is not None else "Primary"
+        print(f"No {main_data_descriptor.lower()} data or labels remaining after all processing. Cannot create {main_data_descriptor.lower()} DataLoader.")
+        return None, None, current_label_encoder
+
+    # Determine augmentation: only apply to actual training data.
+    # shuffle_train also indicates if this is a training context.
+    # If validation_split is None, it's likely a test/eval set, so no augmentation by default unless shuffle_train is true
+    # and augment params are provided.
+    # A safer assumption: augment only if validation_split was performed, indicating a clear training set.
+    # Or, more directly, if shuffle_train is True and augment params are given.
+    # The current logic in TimeSeriesDataset relies on explicit params. We pass them if this is the "training" portion.
+    # If validation_split is not None, this is the training set.
+    # If validation_split is None, then this is a test/eval set, for which augment_noise_std_train etc. should be None.
+    
+    active_augment_noise = None
+    active_augment_scale = None
+    main_loader_name_suffix = "Training"
+
+    if validation_split is not None: # This is the training part of a train/val split
+        active_augment_noise = augment_noise_std_train
+        active_augment_scale = augment_scale_range_train
+    elif shuffle_train and (augment_noise_std_train is not None or augment_scale_range_train is not None):
+        # Case: No validation split, but shuffling and augmentation are explicitly requested for this loader.
+        # This could be a "train_final_model_on_all_data" scenario.
+        active_augment_noise = augment_noise_std_train
+        active_augment_scale = augment_scale_range_train
+        main_loader_name_suffix = "Augmented Primary"
+    elif validation_split is None:
+        main_loader_name_suffix = "Primary"
+
 
     train_dataset = TimeSeriesDataset(train_data_matrices, integer_labels_train, downsample_factor=1, normalize=normalize,
-                                      augment_noise_std=augment_noise_std_train, augment_scale_range=augment_scale_range_train)
+                                      augment_noise_std=active_augment_noise, 
+                                      augment_scale_range=active_augment_scale)
+                                      
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle_train, num_workers=num_workers)
-    print(f"Loaded {len(train_dataset)} samples/chunks into Training DataLoader from {data_dir}.")
-    if label_encoder:
-        print(f"LabelEncoder classes used for training: {list(label_encoder.classes_)}")
+    print(f"Loaded {len(train_dataset)} samples/chunks into {main_loader_name_suffix} DataLoader from {data_dir}.")
+    
+    if current_label_encoder and hasattr(current_label_encoder, 'classes_') and len(current_label_encoder.classes_) > 0:
+        print(f"LabelEncoder classes: {list(current_label_encoder.classes_)}")
+    elif current_label_encoder is None:
+        print("LabelEncoder is None (was not provided and not fitted).")
+    else: # Encoder exists but has no classes
+        print("LabelEncoder is available but has no classes (e.g., fitting failed or no labels provided).")
 
 
     val_loader = None
     if val_data_matrices and integer_labels_val is not None and len(integer_labels_val) > 0:
-        # Augmentations are typically not applied to validation data
-        val_dataset = TimeSeriesDataset(val_data_matrices, integer_labels_val, downsample_factor=1, normalize=normalize)
+        val_dataset = TimeSeriesDataset(val_data_matrices, integer_labels_val, downsample_factor=1, normalize=normalize) # No augmentation for val
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers) 
         print(f"Loaded {len(val_dataset)} samples/chunks into Validation DataLoader from {data_dir}.")
-    elif validation_split is not None:
+    elif validation_split is not None: # Only print this if val split was expected
         print("Validation set was requested but is empty or has no valid labels after processing. Validation DataLoader will be None.")
 
-    print(f"Effective params: (original_downsample_factor={downsample_factor}, chunk_length={chunk_length}, hop_length={hop_length if chunk_length else None}, normalize={normalize}, validation_split={validation_split}).")
-    return train_loader, val_loader, label_encoder
+    effective_hop_length = hop_length if chunk_length else None
+    print(f"Effective params: (original_downsample_factor={downsample_factor}, chunk_length={chunk_length}, hop_length={effective_hop_length}, normalize={normalize}, validation_split={validation_split}).")
+    return train_loader, val_loader, current_label_encoder
 
 
 # h5 file parsing ------------------------------------------------------------
