@@ -5,7 +5,13 @@ import torch.optim as optim
 import numpy as np
 import matplotlib.pyplot as plt
 
-device = torch.device('mps' if torch.backends.mps.is_available() else 'cpu') # this is for my macbook pro
+device = torch.device('cpu')
+
+# most basic CNN imaginable
+# 1. initial convolution layer (bottleneck) - kernel size fixed at 7
+# 2. additional convolutional layers with specified kernel sizes
+# 3. global average pooling and final classification layer)
+
 
 class SimpleCNN(nn.Module):
     def __init__(self, in_channels=248, n_classes=10, intermediate_channels=32, dropout_rate=0.2, kernel_sizes_extra=[3, 3]):
