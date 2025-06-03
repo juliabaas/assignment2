@@ -18,9 +18,6 @@ from utils.data_utils import prepare_pytorch_dataloader
 from utils.train_utils import train_model, plot_training_history
 from models.cnn.CNNs import *
 from models.cnn.Zubarev import VAR_CNN
-from models.cnn.InceptionTime import InceptionTime
-from models.gnn.MultiviewGAT import MultiviewGAT
-import matplotlib.pyplot as plt
 
 def main():
     # Hyperparameters
@@ -151,60 +148,15 @@ def main():
         print("Error: Label encoder not available. Cannot determine number of classes. Exiting.")
         return
 
-    # Initialize AttentionMEG model
-    print("\n--- Initializing AttentionMEG Model ---")
-    # model = ImprovedMEGCNN(
-    #     n_channels=N_CHANNELS,
-    #     n_sources=N_SOURCES,
-    #     n_classes=num_classes,
-    #     n_heads=N_HEADS,
-    #     dropout=DROPOUT
-    # ).to(device)
-    # model = BasicMEGCNN(
-    #     n_channels=N_CHANNELS,
-    #     n_sources=N_SOURCES,
-    #     n_classes=num_classes,
-    #     dropout=DROPOUT
-    # ).to(device)
-    # model = SimpleMEGCNN_NoAttention(
-    #     n_channels=N_CHANNELS,
-    #     n_sources=N_SOURCES,
-    #     n_classes=num_classes,
-    #     dropout=DROPOUT
-    # ).to(device)
-    # model = SimpleMEGCNN_NoDilation(
-    #     n_channels=N_CHANNELS,
-    #     n_sources=N_SOURCES,
-    #     n_classes=num_classes,
-    #     dropout=DROPOUT
-    # ).to(device)
-
     model = VAR_CNN(
         n_channels=N_CHANNELS,
         n_sources=N_SOURCES,
         n_classes=num_classes,
-        temporal_filter_length=7,  # Default from VAR_CNN
+        filter_len=7,  # Default from VAR_CNN
         dropout=DROPOUT,
         # l1_penalty=3e-4  # Default from VAR_CNN
     ).to(device)
 
-    # model = MultiviewGAT(
-    #     window_size=100,
-    #     number_channels=N_CHANNELS,
-    #     number_classes=num_classes,
-    #     depth=2,
-    #     gat_heads=4,
-    #     encoder_heads=4,
-    # ).to(device)
-
-    # model = InceptionTime(
-    #     in_channels=N_CHANNELS,
-    #     n_classes=num_classes,
-    #     n_filters=16,
-    #     n_blocks=2,
-    #     bottleneck_channels=16,
-    #     dropout_rate=DROPOUT
-    # ).to(device)
 
     print("\nModel Architecture:")
     print(model)
@@ -215,25 +167,6 @@ def main():
     print(f"\nTotal parameters: {total_params:,}")
     print(f"Trainable parameters: {trainable_params:,}")
 
-    # Debug: Test model with a sample batch to check for dimension issues
-    print("\n--- Debugging: Testing model forward pass with sample data ---")
-    if train_loader_cross:
-        try:
-            train_data_iter = iter(train_loader_cross)
-            sample_batch, sample_labels = next(train_data_iter)
-            sample_batch = sample_batch.to(device)
-            print(f"Input batch shape to model: {sample_batch.shape}")
-            
-            model.eval()
-            with torch.no_grad():
-                outputs = model(sample_batch)
-                print(f"Model output shape: {outputs.shape}")
-                print("Model forward pass successful!")
-        except Exception as e:
-            print(f"Error during model forward pass test: {e}")
-            return
-
-    # print("\n--- Training AttentionMEG Model on Cross-subject Data ---")
     if train_loader_cross and val_loader_cross:
         model, history = train_model(
             model=model,
@@ -278,7 +211,6 @@ def main():
                 accuracy = 100 * correct / total
                 print(f'{subject_name} Accuracy: {accuracy:.2f}% ({correct}/{total})')
                 
-                # You could add more detailed metrics here (confusion matrix, etc.)
         
         # Calculate overall accuracy across all test subjects
         print("\n--- Overall Cross-Subject Performance ---")
@@ -296,18 +228,6 @@ def main():
         overall_accuracy = 100 * total_correct / total_samples
         print(f'Overall Cross-Subject Accuracy: {overall_accuracy:.2f}% ({total_correct}/{total_samples})')
 
-    # Save the trained model
-    # print("\n--- Saving Model ---")
-    # torch.save(model.state_dict(), 'attentionmeg_cross_model.pth')
-    # print("Model saved as 'attentionmeg_cross_model.pth'")
-    
-    # # Extract and save spatial patterns for interpretation
-    # print("\n--- Extracting Spatial Patterns ---")
-    # spatial_patterns = model.get_spatial_patterns()
-    # torch.save(spatial_patterns, 'spatial_patterns_cross.pth')
-    # print(f"Spatial patterns saved. Shape: {spatial_patterns.shape}")
-
-    print("\nAttentionMEG Cross-subject training completed successfully!")
     if test_loaders:
         print(f"Model evaluated on {len(test_loaders)} test subjects with overall accuracy: {overall_accuracy:.2f}%")
 
