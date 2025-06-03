@@ -12,7 +12,7 @@ from torch.utils.data import Dataset, DataLoader
 
 class TimeSeriesDataset(Dataset):
     """
-    pytorch dataset for time series data (simplified, with optional downsampling and normalization).
+    pytorch dataset for time series data (with optional downsampling and normalization)
     """
     def __init__(self, data_matrices, labels, downsample_factor=1, normalize=False, scalers=None, 
                  sample_length=None, stride=None):

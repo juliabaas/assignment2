@@ -102,9 +102,9 @@ def main():
         n_channels=n_channels,
         n_sources=n_sources,
         n_classes=num_classes,
-        temporal_filter_length=7,
+        filter_len=7,
         dropout=dropout,
-        l1_penalty=3e-4
+        # l1_penalty=3e-4
     ).to(device)
 
     print("\nmodel architecture:")
