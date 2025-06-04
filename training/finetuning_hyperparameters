@@ -1,0 +1,38 @@
+import optuna
+import random
+from cnn.train_cnn_cross import train_cnn_cross
+
+def objective(trial):
+    lr = trial.suggest_loguniform('lr', 1e-4, 1e-2)
+    fl = trial.suggest_categorical('filter_len', [3, 5, 7, 9])
+    dr = trial.suggest_uniform('dropout', 0.3, 0.7)
+    bs = trial.suggest_categorical('train_batch_size', [4, 8, 16])
+
+    val_acc = train_cnn_cross(
+        EPOCHS=15,
+        LEARNING_RATE=lr,
+        FILTER_LEN=fl,
+        N_CHANNELS=248,
+        N_SOURCES=32,
+        DROPOUT=dr,
+        WEIGHT_DECAY=1e-4,
+        PATIENCE=15,
+        LR_PATIENCE=7,
+        LR_FACTOR=0.1,
+        TRAIN_BATCH_SIZE=bs,
+        TEST_BATCH_SIZE=bs,
+        DOWNSAMPLE_FACTOR=20,
+        NORMALIZE=True,
+        RANDOM_SEED=42
+    )
+    # return validation accuracy or loss
+    return val_acc
+
+
+study = optuna.create_study(direction='maximize')
+study.optimize(objective, n_trials=1)
+
+print("Best hyperparameters:")
+print(study.best_params)
+print("Best validation accuracy:")
+print(study.best_value)

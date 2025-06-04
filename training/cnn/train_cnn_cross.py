@@ -11,7 +11,6 @@ import torch.optim as optim
 import numpy as np
 import sys
 import os
-import random
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
@@ -20,7 +19,23 @@ from utils.train_utils import train_model, plot_training_history
 from models.cnn.CNNs import *
 from models.cnn.Zubarev import VAR_CNN
 
-def main():
+def train_cnn_cross(
+    EPOCHS=15,
+    LEARNING_RATE=0.0005,
+    FILTER_LEN=7,
+    N_CHANNELS=248,
+    N_SOURCES=32,
+    DROPOUT=0.5,
+    WEIGHT_DECAY=1e-4,
+    PATIENCE=15,
+    LR_PATIENCE=7,
+    LR_FACTOR=0.1,
+    TRAIN_BATCH_SIZE=4,
+    TEST_BATCH_SIZE=4,
+    DOWNSAMPLE_FACTOR=20,
+    NORMALIZE=True,
+    RANDOM_SEED=42
+):
     # Hyperparameters
     # Data paths - adapted for Cross-subject data
     cross_train_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/train'
@@ -28,6 +43,7 @@ def main():
     cross_test2_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test2'  # Test subject 2
     cross_test3_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3'  # Test subject 3
     
+    '''
     # Data processing parameters - with downsampling and normalization
     DOWNSAMPLE_FACTOR = 20  # Factor to downsample input signals
     NORMALIZE = True       # Whether to normalize data
@@ -48,6 +64,7 @@ def main():
     LR_PATIENCE = 7    # Reduced LR patience
     LR_FACTOR = 0.1    
     WEIGHT_DECAY = 1e-4
+    '''
     
     # Set random seed for reproducibility
     torch.manual_seed(RANDOM_SEED)
@@ -153,7 +170,7 @@ def main():
         n_channels=N_CHANNELS,
         n_sources=N_SOURCES,
         n_classes=num_classes,
-        filter_len=7,  # Default from VAR_CNN
+        filter_len=FILTER_LEN,  # Default from VAR_CNN
         dropout=DROPOUT,
         # l1_penalty=3e-4  # Default from VAR_CNN
     ).to(device)
@@ -182,7 +199,7 @@ def main():
         )
         
         print("\n--- Plotting Training History ---")
-        plot_training_history(history)
+        #plot_training_history(history)
     else:
         print("Skipping model training as training or validation data loader is missing.")
         return
@@ -233,4 +250,4 @@ def main():
         print(f"Model evaluated on {len(test_loaders)} test subjects with overall accuracy: {overall_accuracy:.2f}%")
 
 if __name__ == '__main__':
-    main() 
+    train_cnn_cross() 
