@@ -200,14 +200,18 @@ def train_cnn_cross(
         
         print("\n--- Plotting Training History ---")
         #plot_training_history(history)
+        # Get the best validation accuracy (which is the one used for testing)
+        best_val_acc = max(history['val_acc']) if 'val_acc' in history and len(history['val_acc']) > 0 else 0.0
+
     else:
         print("Skipping model training as training or validation data loader is missing.")
-        return
+        return 0.0
 
     # Evaluate on all test subjects individually
     print("\n--- Evaluating Model on All Test Subjects ---")
     if test_loaders:
         model.eval()
+        test_accuracies_dict = {subject_name: accuracy}
         with torch.no_grad():
             for subject_name, test_loader in test_loaders.items():
                 print(f"\nEvaluating on {subject_name}...")
@@ -227,6 +231,7 @@ def train_cnn_cross(
                     all_labels.extend(labels.cpu().numpy())
                 
                 accuracy = 100 * correct / total
+                test_accuracies_dict.update({subject_name: accuracy})
                 print(f'{subject_name} Accuracy: {accuracy:.2f}% ({correct}/{total})')
                 
         
@@ -246,10 +251,12 @@ def train_cnn_cross(
         overall_accuracy = 100 * total_correct / total_samples
         print(f'Overall Cross-Subject Accuracy: {overall_accuracy:.2f}% ({total_correct}/{total_samples})')
         
-        return overall_accuracy
-
     if test_loaders:
         print(f"Model evaluated on {len(test_loaders)} test subjects with overall accuracy: {overall_accuracy:.2f}%")
+        return best_val_acc, test_accuracies_dict, overall_accuracy
+    else:
+        print("No test loaders available. Returning 0.0 accuracy.")
+        return 0.0
 
 if __name__ == '__main__':
     train_cnn_cross() 

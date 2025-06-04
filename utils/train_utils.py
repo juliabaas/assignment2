@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
+import copy
 
 device = torch.device('cpu')
 
@@ -12,6 +13,7 @@ def train_model(model, train_loader, val_loader, epochs=10, lr=0.001, patience=5
     optimizer = optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=lr_factor, patience=lr_patience)
     best_val_loss = float('inf')
+    best_model_wts = copy.deepcopy(model.state_dict())
     epochs_no_improve = 0
     history = {'train_loss': [], 'train_acc': [], 'val_loss': [], 'val_acc': [], 'lr': []}
 
@@ -66,13 +68,15 @@ def train_model(model, train_loader, val_loader, epochs=10, lr=0.001, patience=5
         
         if val_loss < best_val_loss:
             best_val_loss = val_loss
+            best_model_wts = copy.deepcopy(model.state_dict())  # Save best weights
             epochs_no_improve = 0
         else:
             epochs_no_improve += 1
             if epochs_no_improve >= patience:
                 print(f'Early stopping triggered after {epoch+1} epochs.')
                 break 
-    
+
+    model.load_state_dict(best_model_wts)  # Restore best weights
     return model, history
 
 

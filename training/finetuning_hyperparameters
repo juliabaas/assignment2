@@ -8,7 +8,7 @@ def objective(trial):
     dr = trial.suggest_uniform('dropout', 0.3, 0.7)
     bs = trial.suggest_categorical('train_batch_size', [4, 8, 16])
 
-    val_acc = train_cnn_cross(
+    val_acc, test_accuracies, overall_test_acc = train_cnn_cross(
         EPOCHS=15,
         LEARNING_RATE=lr,
         FILTER_LEN=fl,
@@ -25,7 +25,9 @@ def objective(trial):
         NORMALIZE=True,
         RANDOM_SEED=42
     )
-    # return validation accuracy or loss
+    # Store test results for later analysis
+    trial.set_user_attr("test_accuracies", test_accuracies)
+    trial.set_user_attr("overall_test_accuracy", overall_test_acc)
     return val_acc
 
 
@@ -36,3 +38,8 @@ print("Best hyperparameters:")
 print(study.best_params)
 print("Best validation accuracy:")
 print(study.best_value)
+
+best_trial = study.best_trial
+print("Best validation accuracy:", best_trial.value)
+print("Best test accuracies per subject:", best_trial.user_attrs["test_accuracies"])
+print("Best overall test accuracy:", best_trial.user_attrs["overall_test_accuracy"])
