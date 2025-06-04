@@ -9,7 +9,7 @@ def objective(trial):
     bs = trial.suggest_categorical('train_batch_size', [4, 8, 16])
 
     val_acc, test_accuracies, overall_test_acc = train_cnn_cross(
-        EPOCHS=15,
+        EPOCHS=2,
         LEARNING_RATE=lr,
         FILTER_LEN=fl,
         N_CHANNELS=248,

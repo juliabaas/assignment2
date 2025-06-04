@@ -211,7 +211,7 @@ def train_cnn_cross(
     print("\n--- Evaluating Model on All Test Subjects ---")
     if test_loaders:
         model.eval()
-        test_accuracies_dict = {subject_name: accuracy}
+        test_accuracies_dict = {}
         with torch.no_grad():
             for subject_name, test_loader in test_loaders.items():
                 print(f"\nEvaluating on {subject_name}...")
