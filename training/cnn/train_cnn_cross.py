@@ -245,6 +245,8 @@ def train_cnn_cross(
         
         overall_accuracy = 100 * total_correct / total_samples
         print(f'Overall Cross-Subject Accuracy: {overall_accuracy:.2f}% ({total_correct}/{total_samples})')
+        
+        return overall_accuracy
 
     if test_loaders:
         print(f"Model evaluated on {len(test_loaders)} test subjects with overall accuracy: {overall_accuracy:.2f}%")
