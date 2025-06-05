@@ -1,5 +1,5 @@
 import optuna
-import random
+import os
 from cnn.train_cnn_cross import train_cnn_cross
 
 def objective(trial):
@@ -9,7 +9,7 @@ def objective(trial):
     bs = trial.suggest_categorical('train_batch_size', [4, 8, 16])
 
     val_acc, test_accuracies, overall_test_acc = train_cnn_cross(
-        EPOCHS=2,
+        EPOCHS=30,
         LEARNING_RATE=lr,
         FILTER_LEN=fl,
         N_CHANNELS=248,
@@ -32,14 +32,16 @@ def objective(trial):
 
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=1)
+study.optimize(objective, n_trials=30)
 
 print("Best hyperparameters:")
 print(study.best_params)
-print("Best validation accuracy:")
-print(study.best_value)
 
 best_trial = study.best_trial
 print("Best validation accuracy:", best_trial.value)
 print("Best test accuracies per subject:", best_trial.user_attrs["test_accuracies"])
 print("Best overall test accuracy:", best_trial.user_attrs["overall_test_accuracy"])
+
+
+# in case you're running at night turn this on to put the computer to sleep after training:
+#os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
