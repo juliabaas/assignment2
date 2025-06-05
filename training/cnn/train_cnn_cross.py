@@ -38,10 +38,10 @@ def train_cnn_cross(
 ):
     # Hyperparameters
     # Data paths - adapted for Cross-subject data
-    cross_train_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/train'
-    cross_test1_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test1'  # Test subject 1
-    cross_test2_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test2'  # Test subject 2
-    cross_test3_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3'  # Test subject 3
+    cross_train_path = 'data/Cross/train'
+    cross_test1_path = 'data/Cross/test1'  # Test subject 1
+    cross_test2_path = 'data/Cross/test2'  # Test subject 2
+    cross_test3_path = 'data/Cross/test3'  # Test subject 3
     
     '''
     # Data processing parameters - with downsampling and normalization
