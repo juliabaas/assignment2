@@ -4,7 +4,7 @@ from cnn.train_cnn_cross import train_cnn_cross
 
 def objective(trial):
     lr = trial.suggest_loguniform('lr', 1e-4, 1e-2)
-    fl = trial.suggest_categorical('filter_len', [3, 5, 7, 9])
+    fl = trial.suggest_categorical('filter_len', [5, 7, 9])
     dr = trial.suggest_uniform('dropout', 0.3, 0.7)
     bs = trial.suggest_categorical('train_batch_size', [4, 8, 16])
 
@@ -44,4 +44,4 @@ print("Best overall test accuracy:", best_trial.user_attrs["overall_test_accurac
 
 
 # in case you're running at night turn this on to put the computer to sleep after training:
-#os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")

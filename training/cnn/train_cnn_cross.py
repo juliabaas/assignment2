@@ -20,28 +20,28 @@ from models.cnn.CNNs import *
 from models.cnn.Zubarev import VAR_CNN
 
 def train_cnn_cross(
-    EPOCHS=15,
-    LEARNING_RATE=0.0005,
-    FILTER_LEN=7,
+    EPOCHS=30,
+    LEARNING_RATE=0.0039,
+    FILTER_LEN=5,
     N_CHANNELS=248,
     N_SOURCES=32,
-    DROPOUT=0.5,
+    DROPOUT=0.3419,
     WEIGHT_DECAY=1e-4,
     PATIENCE=15,
     LR_PATIENCE=7,
     LR_FACTOR=0.1,
-    TRAIN_BATCH_SIZE=4,
-    TEST_BATCH_SIZE=4,
-    DOWNSAMPLE_FACTOR=20,
+    TRAIN_BATCH_SIZE=8,
+    TEST_BATCH_SIZE=8,
+    DOWNSAMPLE_FACTOR=10,
     NORMALIZE=True,
     RANDOM_SEED=42
 ):
     # Hyperparameters
     # Data paths - adapted for Cross-subject data
-    cross_train_path = 'data/Cross/train'
-    cross_test1_path = 'data/Cross/test1'  # Test subject 1
-    cross_test2_path = 'data/Cross/test2'  # Test subject 2
-    cross_test3_path = 'data/Cross/test3'  # Test subject 3
+    cross_train_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/train'
+    cross_test1_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test1'  # Test subject 1
+    cross_test2_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test2'  # Test subject 2
+    cross_test3_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3'  # Test subject 3
     
     '''
     # Data processing parameters - with downsampling and normalization
@@ -76,7 +76,7 @@ def train_cnn_cross(
     le_cross = None
     channel_scalers_cross = None # To store fitted scalers
 
-    print("--- Processing Cross-subject Training Data ---")
+    #print("--- Processing Cross-subject Training Data ---")
     train_loader_cross, le_cross, channel_scalers_cross = prepare_pytorch_dataloader(
         cross_train_path, 
         batch_size=TRAIN_BATCH_SIZE, 
@@ -88,15 +88,15 @@ def train_cnn_cross(
     )
     
     if train_loader_cross and le_cross: 
-        print(f"Cross-subject training DataLoader created. Label mapping: {dict(zip(le_cross.classes_, le_cross.transform(le_cross.classes_)))}")
+        #print(f"Cross-subject training DataLoader created. Label mapping: {dict(zip(le_cross.classes_, le_cross.transform(le_cross.classes_)))}")
         
         # Debug: Check the first batch to see actual data dimensions
-        print("--- Debugging: Checking training data dimensions ---")
+        #print("--- Debugging: Checking training data dimensions ---")
         try:
             train_data_iter = iter(train_loader_cross)
             sample_batch, sample_labels = next(train_data_iter)
-            print(f"Training batch shape: {sample_batch.shape}")
-            print(f"Training labels shape: {sample_labels.shape}")
+            #print(f"Training batch shape: {sample_batch.shape}")
+            #print(f"Training labels shape: {sample_labels.shape}")
             print(f"Sample data type: {sample_batch.dtype}")
         except Exception as e:
             print(f"Error checking training data dimensions: {e}")
@@ -106,7 +106,7 @@ def train_cnn_cross(
         print("Failed to create Cross-subject training DataLoader. Exiting.")
         return
 
-    print("--- Processing Cross-subject Test Data from All Three Subjects ---")
+    #print("--- Processing Cross-subject Test Data from All Three Subjects ---")
     test_loaders = {}
     test_paths = {
         'Subject 1': cross_test1_path,
@@ -116,7 +116,7 @@ def train_cnn_cross(
     
     if le_cross:
         for subject_name, test_path in test_paths.items():
-            print(f"Loading test data for {subject_name}...")
+            #print(f"Loading test data for {subject_name}...")
             test_loader, _, _ = prepare_pytorch_dataloader(
                 test_path, 
                 batch_size=TEST_BATCH_SIZE, 
@@ -129,15 +129,15 @@ def train_cnn_cross(
             )
             if test_loader:
                 test_loaders[subject_name] = test_loader
-                print(f"Successfully loaded test data for {subject_name}")
+               # print(f"Successfully loaded test data for {subject_name}")
                 
                 # Debug: Check test data dimensions
-                print(f"--- Debugging: Checking {subject_name} test data dimensions ---")
+               # print(f"--- Debugging: Checking {subject_name} test data dimensions ---")
                 try:
                     test_data_iter = iter(test_loader)
                     sample_batch, sample_labels = next(test_data_iter)
-                    print(f"{subject_name} batch shape: {sample_batch.shape}")
-                    print(f"{subject_name} labels shape: {sample_labels.shape}")
+                   # print(f"{subject_name} batch shape: {sample_batch.shape}")
+                   # print(f"{subject_name} labels shape: {sample_labels.shape}")
                 except Exception as e:
                     print(f"Error checking {subject_name} test data dimensions: {e}")
                 
@@ -152,7 +152,7 @@ def train_cnn_cross(
         val_loader_cross = None
         if test_loaders:
             val_loader_cross = list(test_loaders.values())[0]  # Use first test subject for validation during training
-            print(f"Using {list(test_loaders.keys())[0]} data for validation during training")
+            #print(f"Using {list(test_loaders.keys())[0]} data for validation during training")
         else:
             print("No test data loaders created successfully.")
     else:
@@ -161,9 +161,9 @@ def train_cnn_cross(
     # Determine number of classes from the label encoder
     if le_cross:
         num_classes = len(le_cross.classes_)
-        print(f"Number of classes determined from label encoder: {num_classes}")
+        #print(f"Number of classes determined from label encoder: {num_classes}")
     else:
-        print("Error: Label encoder not available. Cannot determine number of classes. Exiting.")
+        #print("Error: Label encoder not available. Cannot determine number of classes. Exiting.")
         return
 
     model = VAR_CNN(
@@ -198,13 +198,13 @@ def train_cnn_cross(
             weight_decay=WEIGHT_DECAY
         )
         
-        print("\n--- Plotting Training History ---")
+        #print("\n--- Plotting Training History ---")
         #plot_training_history(history)
         # Get the best validation accuracy (which is the one used for testing)
         best_val_acc = max(history['val_acc']) if 'val_acc' in history and len(history['val_acc']) > 0 else 0.0
 
     else:
-        print("Skipping model training as training or validation data loader is missing.")
+        #print("Skipping model training as training or validation data loader is missing.")
         return 0.0
 
     # Evaluate on all test subjects individually
