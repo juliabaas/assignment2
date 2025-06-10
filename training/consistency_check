@@ -1,0 +1,56 @@
+from cnn.train_cnn_cross import train_cnn_cross
+
+# Set your fixed hyperparameters
+params = dict(
+    EPOCHS=40,
+    LEARNING_RATE=0.003920623257156696,
+    FILTER_LEN=5,
+    N_CHANNELS=248,
+    N_SOURCES=32,
+    DROPOUT=0.3419228470059083,
+    WEIGHT_DECAY=1e-4,
+    PATIENCE=15,
+    LR_PATIENCE=7,
+    LR_FACTOR=0.1,
+    TRAIN_BATCH_SIZE=8,
+    TEST_BATCH_SIZE=8,
+    DOWNSAMPLE_FACTOR=20,
+    NORMALIZE=True,
+    RANDOM_SEED=None  # We'll set this in the loop for reproducibility
+)
+
+n_runs = 25
+val_accs = []
+test_accs = []
+test_accs_per_subject = []
+
+for i in range(n_runs):
+    print(f"\n=== Run {i+1}/{n_runs} ===")
+    params['RANDOM_SEED'] = 42 + i  # Change seed for each run
+    val_acc, test_accuracies, overall_test_acc = train_cnn_cross(**params)
+    val_accs.append(val_acc)
+    test_accs.append(overall_test_acc)
+    test_accs_per_subject.append(test_accuracies)
+    print(f"Validation accuracy: {val_acc:.2f}%")
+    print(f"Test accuracies per subject: {test_accuracies}")
+    print(f"Overall test accuracy: {overall_test_acc:.2f}%")
+
+print("\n=== Summary ===")
+print(f"Validation accuracies: {val_accs}")
+print(f"Overall test accuracies: {test_accs}")
+print(f"Test accuracies per subject: {test_accs_per_subject}")
+print(f"Mean overall test accuracy: {sum(test_accs)/len(test_accs):.2f}%")
+
+import matplotlib.pyplot as plt
+
+# Plot validation and test accuracies for each run
+plt.figure(figsize=(8, 5))
+plt.plot(val_accs, marker='o', label='Validation Accuracy')
+plt.plot(test_accs, label='Overall Test Accuracy')
+plt.xlabel('Run')
+plt.ylabel('Accuracy (%)')
+plt.title('Validation and Test Accuracies Across Runs')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
