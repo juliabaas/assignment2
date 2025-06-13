@@ -4,7 +4,7 @@ import numpy as np
 
 # Set your fixed hyperparameters
 params = dict(
-    EPOCHS=40,
+    EPOCHS=3,
     LEARNING_RATE=0.003920623257156696,
     FILTER_LEN=5,
     N_CHANNELS=248,
@@ -21,7 +21,7 @@ params = dict(
     RANDOM_SEED=None  # We'll set this in the loop for reproducibility
 )
 
-n_runs = 25
+n_runs = 2
 val_accs = []
 test_accs = []
 test_accs_per_subject = []
