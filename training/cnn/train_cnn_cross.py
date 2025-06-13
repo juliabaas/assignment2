@@ -10,10 +10,10 @@ import torch.nn as nn
 import torch.optim as optim
 import numpy as np
 import sys
-import os
-
+import os, shutil
+import matplotlib.pyplot as plt
+from collections import defaultdict
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 from utils.data_utils import prepare_pytorch_dataloader
 from utils.train_utils import train_model, plot_training_history
 from models.cnn.CNNs import *
@@ -36,36 +36,25 @@ def train_cnn_cross(
     NORMALIZE=True,
     RANDOM_SEED=42
 ):
-    # Hyperparameters
+    #splitting test set 3 into two subjects
+    src_dir = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3'
+    dst_dir_725751 = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3_725751'
+    dst_dir_735148 = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3_735148'
+
+    os.makedirs(dst_dir_725751, exist_ok=True)
+    os.makedirs(dst_dir_735148, exist_ok=True)
+
+    for f in os.listdir(src_dir):
+        if '725751' in f:
+            shutil.copy(os.path.join(src_dir, f), os.path.join(dst_dir_725751, f))
+        elif '735148' in f:
+            shutil.copy(os.path.join(src_dir, f), os.path.join(dst_dir_735148, f))
+ 
     # Data paths - adapted for Cross-subject data
     cross_train_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/train'
     cross_test1_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test1'  # Test subject 1
     cross_test2_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test2'  # Test subject 2
-    cross_test3_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3'  # Test subject 3
-    
-    '''
-    # Data processing parameters - with downsampling and normalization
-    DOWNSAMPLE_FACTOR = 20  # Factor to downsample input signals
-    NORMALIZE = True       # Whether to normalize data
-    TRAIN_BATCH_SIZE = 4   # Batch size
-    TEST_BATCH_SIZE = 4    # Batch size for test/validation
-    RANDOM_SEED = 42
-    
-    # Model parameters for AttentionMEG - reduced complexity
-    N_CHANNELS = 248  # Number of MEG channels
-    N_SOURCES = 32    # Reduced number of spatial sources (was 32)
-    N_HEADS = 2       # Reduced number of attention heads (was 8)
-    DROPOUT = 0.5     # Reduced dropout rate
-    
-    # Training parameters
-    EPOCHS = 15        # Reduced epochs for faster training
-    LEARNING_RATE = 0.0005  # Slightly higher learning rate
-    PATIENCE = 15       # Reduced patience
-    LR_PATIENCE = 7    # Reduced LR patience
-    LR_FACTOR = 0.1    
-    WEIGHT_DECAY = 1e-4
-    '''
-    
+     
     # Set random seed for reproducibility
     torch.manual_seed(RANDOM_SEED)
     np.random.seed(RANDOM_SEED)
@@ -108,12 +97,14 @@ def train_cnn_cross(
 
     #print("--- Processing Cross-subject Test Data from All Three Subjects ---")
     test_loaders = {}
+    
     test_paths = {
         'Subject 1': cross_test1_path,
         'Subject 2': cross_test2_path, 
-        'Subject 3': cross_test3_path
+        'Subject 3': dst_dir_725751,
+        'Subject 4': dst_dir_735148
     }
-    
+
     if le_cross:
         for subject_name, test_path in test_paths.items():
             #print(f"Loading test data for {subject_name}...")
@@ -127,6 +118,7 @@ def train_cnn_cross(
                 downsample_factor=DOWNSAMPLE_FACTOR,
                 normalize=NORMALIZE
             )
+        # Store or use test_loader as before
             if test_loader:
                 test_loaders[subject_name] = test_loader
                # print(f"Successfully loaded test data for {subject_name}")
@@ -250,10 +242,58 @@ def train_cnn_cross(
         
         overall_accuracy = 100 * total_correct / total_samples
         print(f'Overall Cross-Subject Accuracy: {overall_accuracy:.2f}% ({total_correct}/{total_samples})')
+
+        # Plot per subject, per task accuracy:
+        label_to_task = {i: name for i, name in enumerate(le_cross.classes_)}
+
+        # For storing per subject, per task results
+        subject_task_correct = defaultdict(lambda: defaultdict(int))
+        subject_task_total = defaultdict(lambda: defaultdict(int))
+
+        for subject_name, test_loader in test_loaders.items():
+            with torch.no_grad():
+                for data, labels in test_loader:
+                    data, labels = data.to(device), labels.to(device)
+                    outputs = model(data)
+                    _, predicted = torch.max(outputs.data, 1)
+                    for pred, label in zip(predicted.cpu().numpy(), labels.cpu().numpy()):
+                        task = label_to_task[label]
+                        subject_task_correct[subject_name][task] += int(pred == label)
+                        subject_task_total[subject_name][task] += 1
         
+        subject_task_accuracy = defaultdict(dict)
+        for subject in subject_task_correct:
+            for task in subject_task_correct[subject]:
+                correct = subject_task_correct[subject][task]
+                total = subject_task_total[subject][task]
+                acc = 100 * correct / total if total > 0 else 0.0
+                subject_task_accuracy[subject][task] = acc
+
+        '''
+        subjects = list(subject_task_accuracy.keys())
+        tasks = sorted({task for subj in subject_task_accuracy.values() for task in subj})
+
+        bar_width = 0.15
+        x = np.arange(len(tasks))
+
+        plt.figure(figsize=(10, 6))
+        for i, subject in enumerate(subjects):
+            accs = [subject_task_accuracy[subject].get(task, 0) for task in tasks]
+            plt.bar(x + i * bar_width, accs, width=bar_width, label=subject)
+
+        plt.xlabel('Task')
+        plt.ylabel('Accuracy (%)')
+        plt.title('Test Accuracy per Subject per Task')
+        plt.xticks(x + bar_width * (len(subjects) - 1) / 2, tasks)
+        plt.ylim(0, 100)
+        plt.legend(title='Subject')
+        plt.tight_layout()
+        plt.show()
+        '''
+
     if test_loaders:
         print(f"Model evaluated on {len(test_loaders)} test subjects with overall accuracy: {overall_accuracy:.2f}%")
-        return best_val_acc, test_accuracies_dict, overall_accuracy
+        return best_val_acc, test_accuracies_dict, overall_accuracy, subject_task_accuracy
     else:
         print("No test loaders available. Returning 0.0 accuracy.")
         return 0.0

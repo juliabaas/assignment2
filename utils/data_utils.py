@@ -373,11 +373,11 @@ def load_h5_data(data_dir):
       #          print(f"Error reading {file_path}: {e}")
                 continue
         
+        
         if matrices:
-            # concatenate along time axis (assuming shape is [channels, time])
-            concatenated_data = np.concatenate(matrices, axis=1)
-            label = _extract_label_from_filename(filenames[0])  # use first file for label extraction
-            all_data.append((concatenated_data, label))
+            for matrix in matrices:
+                label = _extract_label_from_filename(filenames[0])  # use first file for label extraction
+                all_data.append((matrix, label))
         
  #   print(f"    File loading and concatenation completed in {time.time() - start_time:.2f} seconds")
     

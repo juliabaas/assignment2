@@ -1,4 +1,6 @@
 from cnn.train_cnn_cross import train_cnn_cross
+import matplotlib.pyplot as plt
+import numpy as np
 
 # Set your fixed hyperparameters
 params = dict(
@@ -27,13 +29,34 @@ test_accs_per_subject = []
 for i in range(n_runs):
     print(f"\n=== Run {i+1}/{n_runs} ===")
     params['RANDOM_SEED'] = 42 + i  # Change seed for each run
-    val_acc, test_accuracies, overall_test_acc = train_cnn_cross(**params)
+    val_acc, test_accuracies, overall_test_acc, subject_task_accuracy = train_cnn_cross(**params)
     val_accs.append(val_acc)
     test_accs.append(overall_test_acc)
     test_accs_per_subject.append(test_accuracies)
     print(f"Validation accuracy: {val_acc:.2f}%")
     print(f"Test accuracies per subject: {test_accuracies}")
     print(f"Overall test accuracy: {overall_test_acc:.2f}%")
+
+    subjects = list(subject_task_accuracy.keys())
+    tasks = sorted({task for subj in subject_task_accuracy.values() for task in subj})
+
+    bar_width = 0.15
+    x = np.arange(len(tasks))
+
+    plt.figure(figsize=(10, 6))
+    for j, subject in enumerate(subjects):
+        accs = [subject_task_accuracy[subject].get(task, 0) for task in tasks]
+        plt.bar(x + j * bar_width, accs, width=bar_width, label=subject)
+
+    plt.xlabel('Task')
+    plt.ylabel('Accuracy (%)')
+    plt.title(f'Test Accuracy per Subject per Task - Run {i+1}')
+    plt.xticks(x + bar_width * (len(subjects) - 1) / 2, tasks)
+    plt.ylim(0, 100)
+    plt.legend(title='Subject')
+    plt.tight_layout()
+    plt.savefig(f'subject_task_accuracy_run_{i+1}.png')
+    plt.close()
 
 print("\n=== Summary ===")
 print(f"Validation accuracies: {val_accs}")
