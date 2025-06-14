@@ -17,6 +17,7 @@ from utils.train_utils import train_model, plot_training_history
 from models.cnn.CNNs import *
 from models.cnn.Zubarev import VAR_CNN
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 def main():
     # data paths
@@ -24,7 +25,7 @@ def main():
     intra_test_path = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Intra/test'
     
     # parameters
-    downsample_factor = 5
+    downsample_factor = 10
     normalize = True
     train_batch_size = 4
     test_batch_size = 4
@@ -130,10 +131,68 @@ def main():
         )
         
         print("\n--- plotting training history ---")
-        plot_training_history(history)
+        #plot_training_history(history)
     else:
         print("skipping model training as training or validation data loader is missing.")
         return
+
+    # Prepare DataLoader for the test set
+    test_loader, le_intra, _ = prepare_pytorch_dataloader(
+        intra_test_path,
+        batch_size=test_batch_size,
+        shuffle=False,
+        label_encoder=None,  # or pass your label encoder if needed
+        channel_scalers=None,
+        num_workers=0,
+        downsample_factor=10,
+        normalize=True
+    )
+
+    # Map label indices to task names
+    label_to_task = {i: name for i, name in enumerate(le_intra.classes_)}
+
+    # Evaluate model and collect per-task results
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model.eval()
+    task_correct = defaultdict(int)
+    task_total = defaultdict(int)
+
+    with torch.no_grad():
+        for data, labels in test_loader:
+            data, labels = data.to(device), labels.to(device)
+            outputs = model(data)
+            _, predicted = torch.max(outputs.data, 1)
+            for pred, label in zip(predicted.cpu().numpy(), labels.cpu().numpy()):
+                task = label_to_task[label]
+                task_correct[task] += int(pred == label)
+                task_total[task] += 1
+
+    # Compute accuracy per task
+    task_accuracy = {task: 100 * task_correct[task] / task_total[task] if task_total[task] > 0 else 0.0
+                    for task in task_correct}
+
+    display_names = {
+        "rest": "Rest",
+        "task_motor": "Motor",
+        "task_story_math": "Math & story",
+        "task_working_memory": "Working memory"
+    }
+
+    # Plot accuracy per task
+    tasks = sorted(task_accuracy.keys())
+    accuracies = [task_accuracy[task] for task in tasks]
+    labels = [display_names.get(task, task) for task in tasks]  # fallback to original if not found
+
+    plt.figure(figsize=(8, 5))
+    bars = plt.bar(labels, accuracies)
+    plt.xlabel('Task')
+    plt.ylabel('Accuracy (%)')
+    plt.title('Test Accuracy per Task')
+    plt.ylim(0, 100)
+    for bar, acc in zip(bars, accuracies):
+        plt.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 1, f'{acc:.1f}%', ha='center', va='bottom')
+    plt.tight_layout()
+    plt.show()
 
     print("\ntraining completed successfully!")
 

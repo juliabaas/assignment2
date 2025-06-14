@@ -4,7 +4,7 @@ import numpy as np
 
 # Set your fixed hyperparameters
 params = dict(
-    EPOCHS=30,
+    EPOCHS=40,
     LEARNING_RATE=0.0007202,
     FILTER_LEN=5,
     N_CHANNELS=248,
@@ -21,7 +21,7 @@ params = dict(
     RANDOM_SEED=None  # We'll set this in the loop for reproducibility
 )
 
-n_runs = 2
+n_runs = 1
 val_accs = []
 test_accs = []
 test_accs_per_subject = []
@@ -43,6 +43,16 @@ for i in range(n_runs):
     bar_width = 0.15
     x = np.arange(len(tasks))
 
+    # Optional: pretty display names for tasks
+    display_names = {
+        "rest": "Rest",
+        "task_motor": "Motor",
+        "task_story_math": "Math & story",
+        "task_working_memory": "Working memory"
+    }
+
+    labels = [display_names.get(task, task) for task in tasks]
+
     plt.figure(figsize=(10, 6))
     for j, subject in enumerate(subjects):
         accs = [subject_task_accuracy[subject].get(task, 0) for task in tasks]
@@ -51,7 +61,7 @@ for i in range(n_runs):
     plt.xlabel('Task')
     plt.ylabel('Accuracy (%)')
     plt.title(f'Test Accuracy per Subject per Task - Run {i+1}')
-    plt.xticks(x + bar_width * (len(subjects) - 1) / 2, tasks)
+    plt.xticks(x + bar_width * (len(subjects) - 1) / 2, labels)
     plt.ylim(0, 100)
     plt.legend(title='Subject')
     plt.tight_layout()
