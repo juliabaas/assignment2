@@ -5,17 +5,17 @@ import numpy as np
 # Set your fixed hyperparameters
 params = dict(
     EPOCHS=40,
-    LEARNING_RATE=0.0007202,
-    FILTER_LEN=5,
+    LEARNING_RATE=0.0005,
+    FILTER_LEN=7,
     N_CHANNELS=248,
     N_SOURCES=32,
-    DROPOUT=0.488357,
+    DROPOUT=0.6114,
     WEIGHT_DECAY=1e-4,
     PATIENCE=15,
     LR_PATIENCE=7,
     LR_FACTOR=0.1,
-    TRAIN_BATCH_SIZE=4,
-    TEST_BATCH_SIZE=4,
+    TRAIN_BATCH_SIZE=8,
+    TEST_BATCH_SIZE=8,
     DOWNSAMPLE_FACTOR=20,
     NORMALIZE=True,
     RANDOM_SEED=None  # We'll set this in the loop for reproducibility
@@ -28,7 +28,7 @@ test_accs_per_subject = []
 
 for i in range(n_runs):
     print(f"\n=== Run {i+1}/{n_runs} ===")
-    params['RANDOM_SEED'] = 42 + i  # Change seed for each run
+    #params['RANDOM_SEED'] = 42 + i  # Change seed for each run
     val_acc, test_accuracies, overall_test_acc, subject_task_accuracy = train_cnn_cross(**params)
     val_accs.append(val_acc)
     test_accs.append(overall_test_acc)

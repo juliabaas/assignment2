@@ -5,13 +5,14 @@ import matplotlib.pyplot as plt
 import optuna.visualization as vis
 
 def objective(trial):
+    plot_filename = f'subject_task_accuracy_trial_{trial.number}.png'
     lr = trial.suggest_loguniform('lr', 1e-4, 1e-2)
     fl = trial.suggest_categorical('filter_len', [5, 7, 9])
     dr = trial.suggest_uniform('dropout', 0.3, 0.7)
     bs = trial.suggest_categorical('train_batch_size', [4, 8, 16])
 
     val_acc, test_accuracies, overall_test_acc, _ = train_cnn_cross(
-        EPOCHS=30,
+        EPOCHS=35,
         LEARNING_RATE=lr,
         FILTER_LEN=fl,
         N_CHANNELS=248,
@@ -25,7 +26,8 @@ def objective(trial):
         TEST_BATCH_SIZE=bs,
         DOWNSAMPLE_FACTOR=20,
         NORMALIZE=True,
-        RANDOM_SEED=42
+        RANDOM_SEED=42,
+        plot_filename=plot_filename 
     )
     # Store test results for later analysis
     trial.set_user_attr("test_accuracies", test_accuracies)
@@ -34,7 +36,7 @@ def objective(trial):
 
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=50)
+study.optimize(objective, n_trials=30)
 
 print("Best hyperparameters:")
 print(study.best_params)
@@ -45,18 +47,6 @@ print("Best test accuracies per subject:", best_trial.user_attrs["test_accuracie
 print("Best overall test accuracy:", best_trial.user_attrs["overall_test_accuracy"])
 
 vis.plot_optimization_history(study).show()
-'''
-plt.plot(train_cnn_cross.test_accuracies_dict)
-plt.ylabel('test accuracies')
-plt.xlabel('trial number')
-plt.title('Test Accuracies per Trial')
-plt.show()
 
-plt.plot(train_cnn_cross.best_val_accuracy)
-plt.ylabel('validation accuracies')
-plt.xlabel('trial number')
-plt.title('Validation accuracy per Trial')
-plt.show()
-'''
 # in case you're running at night turn this on to put the computer to sleep after training:
-#os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")

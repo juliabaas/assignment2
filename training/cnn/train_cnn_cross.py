@@ -21,11 +21,11 @@ from models.cnn.Zubarev import VAR_CNN
 
 def train_cnn_cross(
     EPOCHS=30,
-    LEARNING_RATE=0.003920623257156696,
-    FILTER_LEN=5,
+    LEARNING_RATE=0.0005,
+    FILTER_LEN=7,
     N_CHANNELS=248,
     N_SOURCES=32,
-    DROPOUT=0.3419228470059083,
+    DROPOUT=0.6114,
     WEIGHT_DECAY=1e-4,
     PATIENCE=15,
     LR_PATIENCE=7,
@@ -34,7 +34,8 @@ def train_cnn_cross(
     TEST_BATCH_SIZE=8,
     DOWNSAMPLE_FACTOR=10,
     NORMALIZE=True,
-    RANDOM_SEED=42
+    RANDOM_SEED=42,
+    plot_filename = None
 ):
     #splitting test set 3 into two subjects
     src_dir = 'C:/Users/baasj/OneDrive - Universiteit Utrecht/Master AI/Deep Learning/Programming assignments/Final Project data/Cross/test3'
@@ -269,12 +270,20 @@ def train_cnn_cross(
                 acc = 100 * correct / total if total > 0 else 0.0
                 subject_task_accuracy[subject][task] = acc
 
-        '''
         subjects = list(subject_task_accuracy.keys())
         tasks = sorted({task for subj in subject_task_accuracy.values() for task in subj})
 
         bar_width = 0.15
         x = np.arange(len(tasks))
+
+        # Optional: pretty display names for tasks
+        display_names = {
+            "rest": "Rest",
+            "task_motor": "Motor",
+            "task_story_math": "Math & story",
+            "task_working_memory": "Working memory"
+        }
+        labels = [display_names.get(task, task) for task in tasks]
 
         plt.figure(figsize=(10, 6))
         for i, subject in enumerate(subjects):
@@ -284,12 +293,13 @@ def train_cnn_cross(
         plt.xlabel('Task')
         plt.ylabel('Accuracy (%)')
         plt.title('Test Accuracy per Subject per Task')
-        plt.xticks(x + bar_width * (len(subjects) - 1) / 2, tasks)
+        plt.xticks(x + bar_width * (len(subjects) - 1) / 2, labels)
         plt.ylim(0, 100)
         plt.legend(title='Subject')
         plt.tight_layout()
-        plt.show()
-        '''
+        if plot_filename:
+            plt.savefig(plot_filename)
+        plt.close()
 
     if test_loaders:
         print(f"Model evaluated on {len(test_loaders)} test subjects with overall accuracy: {overall_accuracy:.2f}%")
